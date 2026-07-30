@@ -80,13 +80,19 @@ async def web_chat(payload: Dict[str, Any]):
     query = message[1:].strip() if message.startswith("@") else message.strip()
     
     from services.rag_service import rag_service
+    from services.whatsapp_service import whatsapp_service
+    
     bot_answer = await asyncio.to_thread(rag_service.generate_answer, query, clean_phone)
     
     # Save conversation log to Supabase
     await asyncio.to_thread(chat_handler._save_message, clean_phone, query, "user")
     await asyncio.to_thread(chat_handler._save_message, clean_phone, bot_answer, "bot")
     
+    # Send the answer to the connected WhatsApp number via WasenderAPI
+    await whatsapp_service.send_message(clean_phone, bot_answer)
+    
     return {"status": "success", "phone": clean_phone, "query": query, "response": bot_answer}
+
 
 
 MAX_FILE_SIZE_BYTES = 30 * 1024 * 1024  # 30 MB
