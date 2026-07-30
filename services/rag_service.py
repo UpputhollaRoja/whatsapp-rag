@@ -27,7 +27,7 @@ class RAGService:
             logger.error(f"Error getting query embedding: {e}")
             raise e
 
-    def search_documents(self, query_embedding: List[float], top_k: int = 5, min_score: float = 0.5) -> str:
+    def search_documents(self, query_embedding: List[float], top_k: int = 5, min_score: float = 0.25) -> str:
         try:
             results = self.index.query(
                 vector=query_embedding,
@@ -46,6 +46,7 @@ class RAGService:
                         contexts.append(match.metadata['text'])
             
             return "\n\n---\n\n".join(contexts)
+
         except Exception as e:
             logger.error(f"Error searching Pinecone documents: {e}")
             return ""
