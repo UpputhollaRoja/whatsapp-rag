@@ -65,17 +65,10 @@ class DocumentService:
                         text += extracted + "\n"
             except Exception as e:
                 if fitz_error is not None:
-                    logger.warning(f"pypdf extraction error: {e}")
+                    raise ValueError(f"Failed to extract text from PDF: {str(e)}")
 
-        # Engine 4: Raw PDF byte stream string extraction
-        if not text.strip():
-            try:
-                raw_matches = re.findall(rb'[\x20-\x7E\xC0-\xFF]{4,}', file_content)
-                if raw_matches:
-                    decoded_strings = [m.decode('utf-8', errors='ignore').strip() for m in raw_matches[:300]]
-                    text = "\n".join([s for s in decoded_strings if len(s) > 3])
-            except Exception:
-                pass
+        if fitz_error is not None and not text.strip():
+            raise ValueError(f"Failed to extract text from PDF: {str(fitz_error)}")
 
         return text
 
@@ -96,24 +89,32 @@ class DocumentService:
             lower_name = filename.lower()
             if lower_name.endswith(".pdf") or mimetype == "application/pdf":
                 effective_mimetype = "application/pdf"
-            else:
+            elif lower_name.endswith(".txt") or mimetype in ["text/plain", "text/csv", "application/txt"]:
                 effective_mimetype = "text/plain"
+            else:
+                effective_mimetype = mimetype
 
             # 1. Extract text based on file type
             if effective_mimetype == "application/pdf":
                 text = self.extract_text_from_pdf(file_content)
-            else:
+            elif effective_mimetype == "text/plain":
                 text = file_content.decode("utf-8", errors="ignore")
+            else:
+                raise ValueError(f"Unsupported file type: {mimetype} for file {filename}")
             
-            # Fail-safe document text generation for scanned/image PDFs or raw binary files
             if not text or not text.strip():
-                logger.info(f"Using fail-safe text representation for document '{filename}' (doc_id: {doc_id})")
-                text = f"Document Title: {filename}\nIngested knowledge base document {filename} for Pinecone vector search index."
+                logger.warning(f"No text extracted from document {filename} (doc_id: {doc_id})")
+                supabase.table("documents").update({"status": "failed"}).eq("id", doc_id).execute()
+                raise ValueError("No readable text found in document.")
 
             # 2. Chunk text
             chunks = self.text_splitter.split_text(text)
+            
             if not chunks:
-                chunks = [text]
+                logger.warning(f"No text chunks created for document {filename} (doc_id: {doc_id})")
+                supabase.table("documents").update({"status": "failed"}).eq("id", doc_id).execute()
+                raise ValueError("Document yielded zero text chunks.")
+
 
 
             # 3. Get embeddings in batches

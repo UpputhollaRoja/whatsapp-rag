@@ -102,15 +102,21 @@ async def upload_document(file: UploadFile = File(...)):
     filename = file.filename or "uploaded_document"
     lower_filename = filename.lower()
     
-    # Allow all document and text file types (.pdf, .txt, .csv, .md, .doc, .docx, .json, .html, .log, .rtf)
-    allowed_extensions = (".pdf", ".txt", ".csv", ".md", ".doc", ".docx", ".json", ".html", ".log", ".rtf")
+    # Allowed document extensions
+    allowed_extensions = (".pdf", ".txt", ".csv", ".md", ".doc", ".docx", ".json")
+    disallowed_extensions = (".exe", ".dll", ".bin", ".sh", ".bat", ".cmd", ".msi", ".dmg")
+    
+    if any(lower_filename.endswith(ext) for ext in disallowed_extensions):
+        raise HTTPException(status_code=400, detail="Unsupported file type. Executables and binary files are not allowed.")
+
     allowed = (
         file.content_type.startswith("text/")
-        or file.content_type in ["application/pdf", "application/json", "application/octet-stream", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
+        or file.content_type in ["application/pdf", "application/json", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
         or any(lower_filename.endswith(ext) for ext in allowed_extensions)
     )
     if not allowed:
         raise HTTPException(status_code=400, detail="Unsupported file type. Please upload a PDF, TXT, CSV, MD, or DOCX document.")
+
 
     
     doc_id = str(uuid.uuid4())
