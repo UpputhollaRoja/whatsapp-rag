@@ -3,6 +3,7 @@ import logging
 from io import BytesIO
 from typing import List
 from pypdf import PdfReader
+import fitz
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from openai import OpenAI
@@ -28,17 +29,35 @@ class DocumentService:
         )
 
     def extract_text_from_pdf(self, file_content: bytes) -> str:
+        text = ""
+        fitz_error = None
+        # 1. Primary Engine: PyMuPDF (fitz) - Handles complex layout, custom fonts & Telugu/Sanskrit encodings
         try:
-            reader = PdfReader(BytesIO(file_content))
-            text = ""
-            for page in reader.pages:
-                extracted = page.extract_text()
-                if extracted:
-                    text += extracted + "\n"
-            return text
+            doc = fitz.open(stream=file_content, filetype="pdf")
+            for page in doc:
+                page_text = page.get_text()
+                if page_text:
+                    text += page_text + "\n"
         except Exception as e:
-            logger.error(f"Error reading PDF content: {e}")
-            raise ValueError(f"Failed to extract text from PDF: {str(e)}")
+            fitz_error = e
+            logger.warning(f"PyMuPDF extraction failed: {e}. Falling back to pypdf.")
+
+        # 2. Fallback Engine: pypdf if PyMuPDF yielded empty text
+        if not text.strip():
+            try:
+                reader = PdfReader(BytesIO(file_content))
+                for page in reader.pages:
+                    extracted = page.extract_text()
+                    if extracted:
+                        text += extracted + "\n"
+            except Exception as e:
+                logger.error(f"pypdf extraction error: {e}")
+                if fitz_error is not None:
+                    raise ValueError(f"Failed to extract text from PDF: {str(e)}")
+
+        return text
+
+
 
     def get_embeddings(self, texts: List[str], batch_size: int = 20) -> List[List[float]]:
         all_embeddings = []

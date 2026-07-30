@@ -8,6 +8,8 @@ supabase
 python-dotenv
 langchain-text-splitters
 pypdf
+PyMuPDF
+
 
 httpx
 pytest
