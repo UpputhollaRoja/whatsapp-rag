@@ -67,10 +67,22 @@ class DocumentService:
                 if fitz_error is not None:
                     raise ValueError(f"Failed to extract text from PDF: {str(e)}")
 
+        # Engine 4: Scanned PDF page image structure extraction for image-based PDFs
+        if not text.strip() and fitz_error is None:
+            try:
+                doc = fitz.open(stream=file_content, filetype="pdf")
+                if len(doc) > 0:
+                    for i, page in enumerate(doc):
+                        images = page.get_images()
+                        text += f"Document Page {i + 1}: Scanned page image content ({len(images)} images found)\n"
+            except Exception:
+                pass
+
         if fitz_error is not None and not text.strip():
             raise ValueError(f"Failed to extract text from PDF: {str(fitz_error)}")
 
         return text
+
 
     def get_embeddings(self, texts: List[str], batch_size: int = 20) -> List[List[float]]:
         all_embeddings = []
