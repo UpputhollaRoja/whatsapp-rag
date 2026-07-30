@@ -102,14 +102,16 @@ async def upload_document(file: UploadFile = File(...)):
     filename = file.filename or "uploaded_document"
     lower_filename = filename.lower()
     
-    # Check MIME type and file extension
+    # Allow all document and text file types (.pdf, .txt, .csv, .md, .doc, .docx, .json, .html, .log, .rtf)
+    allowed_extensions = (".pdf", ".txt", ".csv", ".md", ".doc", ".docx", ".json", ".html", ".log", ".rtf")
     allowed = (
-        file.content_type in ["application/pdf", "text/plain", "text/csv", "application/txt"]
-        or lower_filename.endswith(".pdf")
-        or lower_filename.endswith(".txt")
+        file.content_type.startswith("text/")
+        or file.content_type in ["application/pdf", "application/json", "application/octet-stream", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
+        or any(lower_filename.endswith(ext) for ext in allowed_extensions)
     )
     if not allowed:
-        raise HTTPException(status_code=400, detail="Unsupported file type. Only PDF and TXT documents are allowed.")
+        raise HTTPException(status_code=400, detail="Unsupported file type. Please upload a PDF, TXT, CSV, MD, or DOCX document.")
+
     
     doc_id = str(uuid.uuid4())
     content = await file.read()
