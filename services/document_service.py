@@ -2,7 +2,8 @@ import os
 import logging
 from io import BytesIO
 from typing import List
-from PyPDF2 import PdfReader
+from pypdf import PdfReader
+
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from openai import OpenAI
 from pinecone import Pinecone

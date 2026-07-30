@@ -7,7 +7,8 @@ pinecone
 supabase
 python-dotenv
 langchain-text-splitters
-PyPDF2
+pypdf
+
 httpx
 pytest
 

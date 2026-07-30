@@ -24,12 +24,16 @@ class WhatsAppService:
 
         payload = {
             "to": clean_to,
-            "text": message
+            "text": message,
+            "token": self.token
         }
+
+        # Include token as query parameter and header for maximum provider compatibility
+        url = f"{self.api_url}?token={self.token}" if "?" not in self.api_url else f"{self.api_url}&token={self.token}"
 
         try:
             async with httpx.AsyncClient() as client:
-                response = await client.post(self.api_url, json=payload, headers=self.headers)
+                response = await client.post(url, json=payload, headers=self.headers)
                 response.raise_for_status()
                 logger.info(f"Message sent to {clean_to} successfully.")
                 return True
@@ -39,5 +43,6 @@ class WhatsAppService:
         except Exception as e:
             logger.error(f"Error sending message: {e}")
             return False
+
 
 whatsapp_service = WhatsAppService()

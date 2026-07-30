@@ -146,11 +146,16 @@ async def upload_document(file: UploadFile = File(...)):
 @app.get("/api/documents", response_model=DocumentListResponse)
 def list_documents():
     try:
-        response = supabase.table("documents").select("*").order("uploaded_at", desc=True).execute()
+        try:
+            response = supabase.table("documents").select("*").order("uploaded_at", desc=True).execute()
+        except Exception as err:
+            logger.warning(f"Could not order documents by uploaded_at: {err}. Falling back to simple select.")
+            response = supabase.table("documents").select("*").execute()
         return DocumentListResponse(status="success", documents=response.data or [])
     except Exception as e:
         logger.error(f"Error listing documents: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/conversations/{phone}", response_model=ConversationResponse)
 def get_user_conversations(phone: str):
