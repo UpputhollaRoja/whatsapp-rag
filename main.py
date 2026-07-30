@@ -95,7 +95,7 @@ async def web_chat(payload: Dict[str, Any]):
 
 
 
-MAX_FILE_SIZE_BYTES = 30 * 1024 * 1024  # 30 MB
+MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024 * 1024  # 2 GB
 
 @app.post("/api/documents/upload", response_model=DocumentUploadResponse)
 async def upload_document(file: UploadFile = File(...)):
@@ -118,7 +118,8 @@ async def upload_document(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
     if len(content) > MAX_FILE_SIZE_BYTES:
-        raise HTTPException(status_code=413, detail="File too large. Maximum allowed size is 30 MB.")
+        raise HTTPException(status_code=413, detail="File too large. Maximum allowed size is 2 GB.")
+
 
     try:
         supabase.table("documents").insert({
