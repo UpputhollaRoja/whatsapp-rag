@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp RAG AI Chatbot System</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🤖</text></svg>">
+</head>
+<body>
+
+    <!-- Header -->
+    <header class="header">
+        <div class="brand">
+            <div class="brand-icon">💬</div>
+            <div>
+                <h1 class="brand-title">WhatsApp RAG Chatbot System</h1>
+                <div class="brand-subtitle">FastAPI • WasenderAPI • Pinecone • NVIDIA AI • Supabase</div>
+            </div>
+        </div>
+
+        <div class="system-status">
+            <div class="status-badge">
+                <span class="status-dot"></span>
+                <span>FastAPI Active</span>
+            </div>
+            <div class="status-badge">
+                <span class="status-dot"></span>
+                <span>Pinecone RAG Ready</span>
+            </div>
+            <div class="status-badge">
+                <span class="status-dot"></span>
+                <span>Bilingual Agent (EN / TE)</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs">
+        <button class="tab-btn active" data-tab="simulator-tab">💬 Live Web Chatbot</button>
+        <button class="tab-btn" data-tab="documents-tab">📄 Ingestion & Knowledge Base</button>
+        <button class="tab-btn" data-tab="conversations-tab">📊 Session History & Logs</button>
+        <button class="tab-btn" data-tab="webhook-tab">⚡ WasenderAPI & Webhook Setup</button>
+    </nav>
+
+    <!-- Main Container -->
+    <main class="main-container">
+
+        <!-- Tab 1: Live Web Chatbot / WhatsApp Simulator -->
+        <section id="simulator-tab" class="tab-content active">
+            <div class="chat-layout">
+                <!-- Sidebar Controls -->
+                <div class="chat-sidebar">
+                    <div class="card">
+                        <h2 class="card-title">📱 Simulator Settings</h2>
+                        <div class="phone-input-group">
+                            <label for="user-phone">Simulated Phone Number</label>
+                            <input type="text" id="user-phone" class="input-field" value="+919876543210" placeholder="+919876543210">
+                        </div>
+                    </div>
+
+                    <div class="card" style="flex:1;">
+                        <h2 class="card-title">💡 Quick Sample Prompts</h2>
+                        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+                            Messages require leading <code style="color: var(--accent-primary);">@</code> symbol to trigger RAG response.
+                        </p>
+
+                        <div class="sample-queries">
+                            <button class="query-chip">@who is rama</button>
+                            <button class="query-chip telugu">@రాముడు ఎవరు?</button>
+                            <button class="query-chip telugu">@who is rama in telugu</button>
+                            <button class="query-chip">@what are the admission requirements?</button>
+                            <button class="query-chip telugu">@కోర్సుల వివరాలు తెలపండి</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Phone Display -->
+                <div class="phone-screen">
+                    <div class="phone-header">
+                        <div class="bot-avatar">AI</div>
+                        <div class="bot-info">
+                            <div class="bot-name">WhatsApp RAG Assistant</div>
+                            <div class="bot-status">● Online • WasenderAPI Connected</div>
+                        </div>
+                    </div>
+
+                    <div id="chat-messages" class="chat-messages">
+                        <div class="message-bubble bot">
+                            Welcome! I am your AI-powered WhatsApp Assistant. Send a message starting with <strong>@</strong> (e.g. <code>@who is rama</code> or <code>@రాముడు ఎవరు?</code>) to search our knowledge base in English or Telugu!
+                            <div class="message-time">System</div>
+                        </div>
+                    </div>
+
+                    <div class="chat-input-bar">
+                        <input type="text" id="chat-input" class="input-field" style="flex: 1;" placeholder="Type message starting with @ (e.g. @who is rama or @రాముడు ఎవరు?)...">
+                        <button id="send-btn" class="btn-send">Send</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 2: Document Ingestion Admin Panel -->
+        <section id="documents-tab" class="tab-content">
+            <div class="card">
+                <h2 class="card-title">📄 Ingest Documents into Vector DB (Pinecone)</h2>
+                <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1.25rem;">
+                    Upload PDF or TXT files to automatically extract text, generate NVIDIA high-dimensional embeddings (<code>nv-embed-v1</code>), and index into Pinecone for RAG retrieval.
+                </p>
+
+                <div id="dropzone" class="dropzone">
+                    <div class="dropzone-icon">📁</div>
+                    <h3>Drag & Drop PDF or TXT files here</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.5rem;">Or click to select a file from your computer (Max 30 MB)</p>
+                    <input type="file" id="file-input" accept=".pdf,.txt" style="display: none;">
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 class="card-title">📚 Knowledge Base Ingested Documents</h2>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Filename</th>
+                                <th>Status</th>
+                                <th>Document ID</th>
+                                <th>Uploaded Date</th>
+                            </tr>
+                        </thead>
+                        <tbody id="documents-tbody">
+                            <tr><td colspan="4" style="text-align:center;">Loading documents...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 3: Session History & Logs -->
+        <section id="conversations-tab" class="tab-content">
+            <div class="card">
+                <h2 class="card-title">📊 User Conversation History (Supabase)</h2>
+                <div style="display: flex; gap: 0.75rem; margin-bottom: 1.25rem;">
+                    <input type="text" id="search-phone" class="input-field" value="+919876543210" placeholder="Enter phone number (+91...)" style="max-width: 320px;">
+                    <button id="btn-load-conversations" class="btn-send">Search History</button>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>User Phone</th>
+                                <th>Sender</th>
+                                <th>Message Content</th>
+                                <th>Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody id="conversations-tbody">
+                            <tr><td colspan="4" style="text-align:center;">Enter phone number and click search...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab 4: Webhook & WasenderAPI Setup Guide -->
+        <section id="webhook-tab" class="tab-content">
+            <div class="card">
+                <h2 class="card-title">⚡ WasenderAPI Webhook Configuration</h2>
+                <div style="line-height: 1.6; font-size: 0.95rem; color: var(--text-main);">
+                    <p style="margin-bottom: 1rem;">To connect your live WhatsApp phone line to this FastAPI backend:</p>
+                    
+                    <ol style="padding-left: 1.5rem; margin-bottom: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem;">
+                        <li>Expose your local FastAPI server (port 8000) using ngrok:
+                            <br><code style="background: rgba(255,255,255,0.06); padding: 0.4rem 0.8rem; border-radius: 6px; font-family: var(--font-mono); color: var(--accent-primary);">ngrok http 8000</code>
+                        </li>
+                        <li>Log into your <strong>WasenderAPI Dashboard</strong> (<code>https://www.wasenderapi.com</code>).</li>
+                        <li>Navigate to <strong>Webhooks Settings</strong> and set Payload URL to:
+                            <br><code style="background: rgba(255,255,255,0.06); padding: 0.4rem 0.8rem; border-radius: 6px; font-family: var(--font-mono); color: var(--accent-success);">https://your-ngrok-domain.ngrok-free.dev/webhook</code>
+                        </li>
+                        <li>Enable <code>messages.received</code> events. Any message received with <code>@</code> prefix will trigger immediate RAG retrieval and WhatsApp automated reply!</li>
+                    </ol>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Toast Notifications Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

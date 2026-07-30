@@ -1,5 +1,5 @@
 import httpx
-from config import settings
+from config import settings, clean_phone_number
 import logging
 
 logger = logging.getLogger(__name__)
@@ -17,12 +17,13 @@ class WhatsAppService:
         """
         Sends a WhatsApp text message using WasenderAPI.
         """
-        # Ensure phone number has a '+' prefix, as WasenderAPI expects
-        if not to.startswith("+"):
-            to = f"+{to}"
+        clean_to = clean_phone_number(to)
+        if not clean_to:
+            logger.error(f"Cannot send WhatsApp message: invalid recipient phone number '{to}'")
+            return False
 
         payload = {
-            "to": to,
+            "to": clean_to,
             "text": message
         }
 
@@ -30,7 +31,7 @@ class WhatsAppService:
             async with httpx.AsyncClient() as client:
                 response = await client.post(self.api_url, json=payload, headers=self.headers)
                 response.raise_for_status()
-                logger.info(f"Message sent to {to} successfully.")
+                logger.info(f"Message sent to {clean_to} successfully.")
                 return True
         except httpx.HTTPStatusError as e:
             logger.error(f"Failed to send message: {e.response.text}")
@@ -39,4 +40,4 @@ class WhatsAppService:
             logger.error(f"Error sending message: {e}")
             return False
 
-whatsapp_service = WhatsAppService()
+whatsapp_service = WhatsAppService()
