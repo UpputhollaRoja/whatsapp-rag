@@ -169,6 +169,7 @@ def list_documents():
         except Exception as err:
             logger.warning(f"Could not order documents by uploaded_at: {err}. Falling back to simple select.")
             response = supabase.table("documents").select("*").execute()
+        # pyrefly: ignore [bad-argument-type]
         return DocumentListResponse(status="success", documents=response.data or [])
     except Exception as e:
         logger.error(f"Error listing documents: {e}")
@@ -183,6 +184,7 @@ def get_user_conversations(phone: str):
             raise HTTPException(status_code=400, detail=f"Invalid phone number provided: '{phone}'")
         
         response = supabase.table("conversations").select("*").eq("user_phone", clean_phone).order("created_at", desc=True).execute()
+        # pyrefly: ignore [bad-argument-type]
         return ConversationResponse(status="success", phone=clean_phone, conversations=response.data or [])
     except HTTPException:
         raise
