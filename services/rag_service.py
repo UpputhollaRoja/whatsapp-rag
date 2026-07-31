@@ -85,6 +85,7 @@ class RAGService:
             if response and response.data:
                 # Reversing to chronological order
                 for row in reversed(response.data):
+                    # pyrefly: ignore [unsupported-operation]
                     role = "user" if row["sender"] == "user" else "assistant"
                     history.append({"role": role, "content": row["message"]})
                 
