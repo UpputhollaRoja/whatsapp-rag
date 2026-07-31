@@ -13,7 +13,7 @@ def test_root_endpoint():
 
 
 def test_verify_webhook_endpoint():
-    response = client.get("/webhook", headers={"X-Webhook-Signature": "c5a947c0608d10de88108854e8c4d483"})
+    response = client.get("/webhook", headers={"X-Webhook-Signature": settings.wasender_webhook_secret})
     assert response.status_code == 200
     assert response.json()["status"] == "success"
 
@@ -25,13 +25,13 @@ def test_receive_webhook_endpoint():
             "messageBody": "@hello"
         }
     }
-    response = client.post("/webhook", json=payload, headers={"X-Webhook-Signature": "c5a947c0608d10de88108854e8c4d483"})
+    response = client.post("/webhook", json=payload, headers={"X-Webhook-Signature": settings.wasender_webhook_secret})
     assert response.status_code == 200
-    assert response.json()["status"] == "success"
+    assert response.json()["status"] == "success"  # pyrefly: ignore
 
 def test_receive_webhook_unauthorized():
-    payload = {"event": "messages.received", "data": {}}
-    response = client.post("/webhook", json=payload, headers={"X-Webhook-Secret": "invalid_secret_key"})
+    payload = {"event": "messages.received", "data": {}}  # pyrefly: ignore
+    response = client.post("/webhook", json=payload, headers={"X-Webhook-Secret": "invalid_secret_key"})  # pyrefly: ignore
     assert response.status_code == 401
     assert "Unauthorized webhook request" in response.json()["detail"]
 

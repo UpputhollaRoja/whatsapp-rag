@@ -172,7 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 data.documents.forEach(doc => {
                     const tr = document.createElement('tr');
                     const statusClass = doc.status === 'indexed' ? 'indexed' : (doc.status === 'processing' ? 'processing' : 'failed');
-                    const dateStr = doc.uploaded_at ? new Date(doc.uploaded_at).toLocaleString() : 'Just now';
+                    const dateStr = (doc.created_at || doc.uploaded_at) ? new Date(doc.created_at || doc.uploaded_at).toLocaleString() : 'Just now';
                     
                     tr.innerHTML = `
                         <td><strong>${escapeHtml(doc.filename)}</strong></td>

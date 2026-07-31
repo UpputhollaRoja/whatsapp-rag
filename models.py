@@ -63,7 +63,8 @@ class DocumentMetadata(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str
     filename: str
-    uploaded_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    uploaded_at: Optional[datetime] = None  # alias kept for backwards compatibility
     status: str
 
 

@@ -22,6 +22,7 @@ from services.chat_handler import chat_handler
 from services.document_service import document_service
 from database import supabase
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
@@ -124,6 +125,8 @@ async def receive_webhook(
         token=token
     )
 
+    # Log raw incoming webhook for diagnostics
+    logger.info(f"[WEBHOOK-RAW] event='{payload.get('event')}' | payload={payload}")
     # Process webhook asynchronously in background task to return 200 OK immediately to WasenderAPI
     background_tasks.add_task(chat_handler.process_raw_webhook, payload)
     return {"status": "success", "message": "Webhook received"}
@@ -246,11 +249,7 @@ async def upload_document(file: UploadFile = File(...)):
 @app.get("/api/documents", response_model=DocumentListResponse, dependencies=[Depends(verify_internal_api_key)])
 def list_documents():
     try:
-        try:
-            response = supabase.table("documents").select("*").order("uploaded_at", desc=True).execute()
-        except Exception as err:
-            logger.warning(f"Could not order documents by uploaded_at: {err}. Falling back to simple select.")
-            response = supabase.table("documents").select("*").execute()
+        response = supabase.table("documents").select("*").order("created_at", desc=True).execute()
         # pyrefly: ignore [bad-argument-type]
         return DocumentListResponse(status="success", documents=response.data or [])
     except Exception as e:
@@ -277,7 +276,8 @@ def get_user_conversations(
             .range(offset, offset + limit - 1)
             .execute()
         )
-        return ConversationResponse(status="success", phone=clean_phone, conversations=response.data or [])
+        conversations: list[Any] = list(response.data or [])
+        return ConversationResponse(status="success", phone=clean_phone, conversations=conversations)
     except HTTPException:
         raise
     except Exception as e:

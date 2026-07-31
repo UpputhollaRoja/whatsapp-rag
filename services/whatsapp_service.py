@@ -43,6 +43,19 @@ class WhatsAppService:
                 return True
 
         except httpx.HTTPStatusError as e:
+            # Parse rate limit response from WasenderAPI free trial (1 msg/min limit)
+            try:
+                err_body = e.response.json()
+                if e.response.status_code == 429 or "retry_after" in err_body:
+                    retry_after = err_body.get("retry_after", "unknown")
+                    logger.warning(
+                        f"WasenderAPI rate limit hit — message to {clean_to} throttled. "
+                        f"Retry after {retry_after}s. "
+                        f"Upgrade plan to remove this limit: {err_body.get('help', '')}"
+                    )
+                    return False
+            except Exception:
+                pass
             logger.error(f"Failed to send message: {e.response.text}")
             return False
         except Exception as e:

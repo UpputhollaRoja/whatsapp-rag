@@ -54,14 +54,16 @@ class ChatHandler:
                 if not isinstance(key, dict):
                     key = {}
 
-                # Debug log full message payload and key object for diagnostic tracking
-                logger.debug(f"Processing incoming WhatsApp message dict: msg={msg}, key={key}")
+                # Log full message payload for diagnostic tracking
+                logger.info(f"[WEBHOOK] Processing message dict: key={key}, msg_keys={list(msg.keys())}")
 
                 # Skip messages sent by ourselves
                 if key.get("fromMe", False):
                     continue
 
-                # Extract sender phone across all possible WasenderAPI webhook field structures
+                # Extract sender phone across all possible WasenderAPI webhook field structures.
+                # NOTE: When addressingMode='lid', remoteJid is a privacy LID (e.g. 221698091667458@lid)
+                # and NOT a real phone number. Always prefer senderPn / cleanedSenderPn from the key.
                 raw_phone = (
                     msg.get("phone")
                     or msg.get("sender")
@@ -69,7 +71,9 @@ class ChatHandler:
                     or msg.get("sender_number")
                     or msg.get("from_number")
                     or msg.get("from")
-                    or key.get("remoteJid")
+                    or key.get("senderPn")          # Real phone in LID addressing mode ✅
+                    or key.get("cleanedSenderPn")   # Pre-cleaned real phone ✅
+                    or (key.get("remoteJid") if "@lid" not in str(key.get("remoteJid", "")) else None)
                     or key.get("participant")
                     or (data.get("phone") if isinstance(data, dict) else None)
                     or (data.get("from") if isinstance(data, dict) else None)
@@ -85,7 +89,8 @@ class ChatHandler:
                     continue
 
                 user_phone = clean_phone_number(str(raw_phone))
-                
+                logger.info(f"[WEBHOOK] raw_phone='{raw_phone}' → user_phone='{user_phone}'")
+
                 if not user_phone:
                     logger.warning(f"Could not extract valid sender phone number from message key={key}, raw_phone='{raw_phone}'")
                     continue
