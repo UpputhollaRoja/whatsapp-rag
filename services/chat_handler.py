@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class ChatHandler:
     async def process_raw_webhook(self, payload: dict):
         try:
-            logger.info(f"Received webhook payload event: {payload.get('event')}")
+            logger.info(f"Received webhook payload event: {payload.get('event')} | Full Payload: {payload}")
             
             data = payload.get("data", {})
             messages = []
@@ -25,7 +25,7 @@ class ChatHandler:
                         messages = msgs
                     elif isinstance(msgs, dict):
                         messages = [msgs]
-                elif "key" in data or "message" in data or "messageBody" in data or "from" in data:
+                elif "key" in data or "message" in data or "messageBody" in data or "from" in data or "body" in data or "text" in data or "phone" in data:
                     messages = [data]
             elif isinstance(data, list):
                 messages = data
@@ -35,6 +35,12 @@ class ChatHandler:
                     messages = msgs
                 elif isinstance(msgs, dict):
                     messages = [msgs]
+
+            if not messages:
+                if isinstance(data, dict) and data:
+                    messages = [data]
+                elif isinstance(payload, dict) and payload:
+                    messages = [payload]
             
             if not messages:
                 logger.info(f"No messages found in webhook payload event: {payload.get('event')}")
