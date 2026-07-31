@@ -31,7 +31,7 @@ def test_receive_webhook_endpoint():
 
 def test_receive_webhook_unauthorized():
     payload = {"event": "messages.received", "data": {}}
-    response = client.post("/webhook", json=payload)
+    response = client.post("/webhook", json=payload, headers={"X-Webhook-Secret": "invalid_secret_key"})
     assert response.status_code == 401
     assert "Unauthorized webhook request" in response.json()["detail"]
 
