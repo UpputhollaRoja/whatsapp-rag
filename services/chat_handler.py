@@ -55,22 +55,33 @@ class ChatHandler:
                 if key.get("fromMe", False):
                     continue
 
-                # In 1:1 direct chats, key.remoteJid (or msg.from) is the authoritative conversation JID.
-                # Check for group chats (@g.us) or broadcast channels (@broadcast)
-                remote_jid = str(key.get("remoteJid") or msg.get("from") or msg.get("from_number") or "")
-                
-                if "@g.us" in remote_jid or "@broadcast" in remote_jid:
-                    # In group chats, participant identifies the sender while remoteJid is the group
-                    participant = str(key.get("participant") or "")
-                    logger.info(f"Skipping non-direct chat message from group/broadcast JID: '{remote_jid}' (participant: '{participant}')")
+                # Extract sender phone across all possible WasenderAPI webhook field structures
+                raw_phone = (
+                    msg.get("phone")
+                    or msg.get("sender")
+                    or msg.get("senderNumber")
+                    or msg.get("sender_number")
+                    or msg.get("from_number")
+                    or msg.get("from")
+                    or key.get("remoteJid")
+                    or key.get("participant")
+                    or (data.get("phone") if isinstance(data, dict) else None)
+                    or (data.get("from") if isinstance(data, dict) else None)
+                    or (data.get("sender") if isinstance(data, dict) else None)
+                    or payload.get("phone")
+                    or payload.get("from")
+                    or ""
+                )
+
+                if "@g.us" in str(raw_phone) or "@broadcast" in str(raw_phone):
+                    participant = str(key.get("participant") or msg.get("participant") or "")
+                    logger.info(f"Skipping non-direct chat message from group/broadcast: '{raw_phone}' (participant: '{participant}')")
                     continue
 
-                # For 1:1 direct chats, remoteJid is the user's phone number JID
-                raw_phone = remote_jid or str(key.get("participant") or "")
-                user_phone = clean_phone_number(raw_phone)
+                user_phone = clean_phone_number(str(raw_phone))
                 
                 if not user_phone:
-                    logger.warning(f"Could not extract valid phone number from message key={key}")
+                    logger.warning(f"Could not extract valid sender phone number from message key={key}, raw_phone='{raw_phone}'")
                     continue
 
                 # Get message content object

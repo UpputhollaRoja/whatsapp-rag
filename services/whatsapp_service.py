@@ -22,14 +22,21 @@ class WhatsAppService:
             logger.error(f"Cannot send WhatsApp message: invalid recipient phone number '{to}'")
             return False
 
+        digits_only = clean_to.lstrip("+")
+
         payload = {
-            "to": clean_to,
+            "to": digits_only,
+            "phone": digits_only,
+            "recipient": clean_to,
+            "number": digits_only,
             "text": message,
+            "message": message,
             "token": self.token
         }
 
         try:
             async with httpx.AsyncClient() as client:
+                logger.info(f"Sending WhatsApp response to {clean_to} (digits: {digits_only}) via WasenderAPI")
                 response = await client.post(self.api_url, json=payload, headers=self.headers)
                 response.raise_for_status()
                 logger.info(f"Message sent to {clean_to} successfully.")
