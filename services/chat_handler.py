@@ -122,34 +122,34 @@ class ChatHandler:
                     await self._handle_whatsapp_document(user_phone, media_url, filename, mimetype)
                     continue
 
-                # Get actual text content with defensive dict check
+                # Get actual text content with defensive dict/type checks
                 ext_text_msg = message_content.get("extendedTextMessage") or {}
                 if not isinstance(ext_text_msg, dict):
                     ext_text_msg = {}
 
                 user_message = (
                     msg.get("messageBody")
+                    or (msg.get("message") if isinstance(msg.get("message"), str) else None)
                     or message_content.get("conversation")
                     or ext_text_msg.get("text")
                     or msg.get("text")
                     or msg.get("body")
+                    or msg.get("caption")
+                    or (data.get("message") if isinstance(data.get("message"), str) else None)
+                    or (payload.get("message") if isinstance(payload.get("message"), str) else None)
                 )
 
-
-                if not user_message:
+                if not user_message or not str(user_message).strip():
                     continue
 
-                user_message = user_message.strip()
-                if not user_message.startswith("@"):
-                    logger.info(f"Skipping message from {user_phone} (does not start with '@'): {user_message}")
-                    continue
+                raw_msg_str = str(user_message).strip()
+                # Strip leading @ symbol if present, otherwise process full message text
+                cleaned_query = raw_msg_str[1:].strip() if raw_msg_str.startswith("@") else raw_msg_str
 
-                # Remove the leading '@' symbol and whitespace
-                cleaned_query = user_message[1:].strip()
                 if not cleaned_query:
                     continue
 
-                logger.info(f"Routing trigger query for user_phone='{user_phone}' derived from key={key}: '{cleaned_query}'")
+                logger.info(f"Routing query from user_phone='{user_phone}': '{cleaned_query}' (raw: '{raw_msg_str}')")
                 await self._handle_single_message(user_phone, cleaned_query)
 
 

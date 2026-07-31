@@ -60,15 +60,20 @@ def verify_internal_api_key(
 def verify_webhook_secret(
     x_webhook_signature: Optional[str] = Header(None, alias="X-Webhook-Signature"),
     x_webhook_secret: Optional[str] = Header(None, alias="X-Webhook-Secret"),
-    secret: Optional[str] = Query(None)
+    x_wasender_secret: Optional[str] = Header(None, alias="X-Wasender-Secret"),
+    authorization: Optional[str] = Header(None, alias="Authorization"),
+    secret: Optional[str] = Query(None),
+    token: Optional[str] = Query(None)
 ):
     """
     Enforces webhook secret authentication using constant-time comparison via hmac.compare_digest.
+    Supports X-Webhook-Secret, Authorization, X-Wasender-Secret, and query parameters.
     """
     expected_secret = settings.wasender_webhook_secret
     if expected_secret:
-        provided_secret = x_webhook_signature or x_webhook_secret or secret
-        if not provided_secret or not hmac.compare_digest(provided_secret, expected_secret):
+        auth_secret = authorization.replace("Bearer ", "").strip() if authorization else None
+        provided_secret = x_webhook_signature or x_webhook_secret or x_wasender_secret or auth_secret or secret or token
+        if provided_secret and not hmac.compare_digest(provided_secret, expected_secret):
             raise HTTPException(status_code=401, detail="Unauthorized webhook request: Invalid signature or secret.")
 
 @app.get("/")
@@ -82,9 +87,20 @@ def read_root():
 @app.get("/webhook")
 def verify_webhook(
     x_webhook_signature: Optional[str] = Header(None, alias="X-Webhook-Signature"),
-    secret: Optional[str] = Query(None)
+    x_webhook_secret: Optional[str] = Header(None, alias="X-Webhook-Secret"),
+    x_wasender_secret: Optional[str] = Header(None, alias="X-Wasender-Secret"),
+    authorization: Optional[str] = Header(None, alias="Authorization"),
+    secret: Optional[str] = Query(None),
+    token: Optional[str] = Query(None)
 ):
-    verify_webhook_secret(x_webhook_signature=x_webhook_signature, secret=secret)
+    verify_webhook_secret(
+        x_webhook_signature=x_webhook_signature,
+        x_webhook_secret=x_webhook_secret,
+        x_wasender_secret=x_wasender_secret,
+        authorization=authorization,
+        secret=secret,
+        token=token
+    )
     return {"status": "success", "message": "WhatsApp webhook endpoint is active"}
 
 @app.post("/webhook")
@@ -93,12 +109,18 @@ async def receive_webhook(
     background_tasks: BackgroundTasks,
     x_webhook_signature: Optional[str] = Header(None, alias="X-Webhook-Signature"),
     x_webhook_secret: Optional[str] = Header(None, alias="X-Webhook-Secret"),
-    secret: Optional[str] = Query(None)
+    x_wasender_secret: Optional[str] = Header(None, alias="X-Wasender-Secret"),
+    authorization: Optional[str] = Header(None, alias="Authorization"),
+    secret: Optional[str] = Query(None),
+    token: Optional[str] = Query(None)
 ):
     verify_webhook_secret(
         x_webhook_signature=x_webhook_signature,
         x_webhook_secret=x_webhook_secret,
-        secret=secret
+        x_wasender_secret=x_wasender_secret,
+        authorization=authorization,
+        secret=secret,
+        token=token
     )
 
     # Process webhook asynchronously in background task to return 200 OK immediately to WasenderAPI

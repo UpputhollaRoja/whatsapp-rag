@@ -30,7 +30,7 @@ def test_process_raw_webhook_ignores_group_chats():
             mock_handle.assert_not_called()
     asyncio.run(_test())
 
-def test_process_raw_webhook_ignores_messages_without_at_prefix():
+def test_process_raw_webhook_triggers_on_plain_message():
     async def _test():
         payload = {
             "event": "messages.received",
@@ -44,7 +44,7 @@ def test_process_raw_webhook_ignores_messages_without_at_prefix():
         }
         with patch.object(chat_handler, "_handle_single_message", new_callable=AsyncMock) as mock_handle:
             await chat_handler.process_raw_webhook(payload)
-            mock_handle.assert_not_called()
+            mock_handle.assert_called_once_with("+919876543210", "hello bot")
     asyncio.run(_test())
 
 def test_process_raw_webhook_triggers_on_at_prefix():
