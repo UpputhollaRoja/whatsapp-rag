@@ -71,29 +71,8 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) {
             showToast(`Connection error: ${e.message}`, true);
         }
-
-        // Send to /webhook endpoint with signature header to test webhook pipeline concurrently
-        try {
-            const webhookPayload = {
-                event: "messages.received",
-                data: {
-                    key: {
-                        remoteJid: `${phone.replace('+', '')}@s.whatsapp.net`,
-                        fromMe: false
-                    },
-                    messageBody: text
-                }
-            };
-            fetch('/webhook', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Webhook-Signature': 'c5a947c0608d10de88108854e8c4d483'
-                },
-                body: JSON.stringify(webhookPayload)
-            }).catch(() => {});
-        } catch (err) {}
     }
+
 
 
     async function fetchLatestBotResponse(phone) {

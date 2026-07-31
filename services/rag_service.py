@@ -9,12 +9,31 @@ logger = logging.getLogger(__name__)
 
 class RAGService:
     def __init__(self):
-        self.openai_client = OpenAI(
-            base_url=settings.nvidia_base_url,
-            api_key=settings.nvidia_api_key
-        )
-        self.pc = Pinecone(api_key=settings.pinecone_api_key)
-        self.index = self.pc.Index(settings.pinecone_index_name)
+        self._openai_client = None
+        self._pc = None
+        self._index = None
+
+    @property
+    def openai_client(self):
+        if self._openai_client is None:
+            self._openai_client = OpenAI(
+                base_url=settings.nvidia_base_url,
+                api_key=settings.nvidia_api_key
+            )
+        return self._openai_client
+
+    @property
+    def pc(self):
+        if self._pc is None:
+            self._pc = Pinecone(api_key=settings.pinecone_api_key)
+        return self._pc
+
+    @property
+    def index(self):
+        if self._index is None:
+            self._index = self.pc.Index(settings.pinecone_index_name)
+        return self._index
+
 
     def get_query_embedding(self, query: str) -> List[float]:
         try:

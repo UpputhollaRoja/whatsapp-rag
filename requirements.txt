@@ -9,8 +9,8 @@ python-dotenv
 langchain-text-splitters
 pypdf
 PyMuPDF
-
-
+python-multipart
 httpx
 pytest
+
 

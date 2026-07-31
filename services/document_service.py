@@ -16,18 +16,36 @@ logger = logging.getLogger(__name__)
 
 class DocumentService:
     def __init__(self):
-        self.openai_client = OpenAI(
-            base_url=settings.nvidia_base_url,
-            api_key=settings.nvidia_api_key
-        )
-        self.pc = Pinecone(api_key=settings.pinecone_api_key)
-        self.index = self.pc.Index(settings.pinecone_index_name)
-        
+        self._openai_client = None
+        self._pc = None
+        self._index = None
         self.text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
             chunk_overlap=100,
             separators=["\n\n", "\n", " ", ""]
         )
+
+    @property
+    def openai_client(self):
+        if self._openai_client is None:
+            self._openai_client = OpenAI(
+                base_url=settings.nvidia_base_url,
+                api_key=settings.nvidia_api_key
+            )
+        return self._openai_client
+
+    @property
+    def pc(self):
+        if self._pc is None:
+            self._pc = Pinecone(api_key=settings.pinecone_api_key)
+        return self._pc
+
+    @property
+    def index(self):
+        if self._index is None:
+            self._index = self.pc.Index(settings.pinecone_index_name)
+        return self._index
+
 
     def extract_text_from_pdf(self, file_content: bytes) -> str:
         text = ""
@@ -67,21 +85,14 @@ class DocumentService:
                 if fitz_error is not None:
                     raise ValueError(f"Failed to extract text from PDF: {str(e)}")
 
-        # Engine 4: Scanned PDF page image structure extraction for image-based PDFs
-        if not text.strip() and fitz_error is None:
-            try:
-                doc = fitz.open(stream=file_content, filetype="pdf")
-                if len(doc) > 0:
-                    for i, page in enumerate(doc):
-                        images = page.get_images()
-                        text += f"Document Page {i + 1}: Scanned page image content ({len(images)} images found)\n"
-            except Exception:
-                pass
-
         if fitz_error is not None and not text.strip():
             raise ValueError(f"Failed to extract text from PDF: {str(fitz_error)}")
 
+        if not text.strip():
+            raise ValueError("This appears to be a scanned/image-only PDF. OCR is not currently supported.")
+
         return text
+
 
 
     def get_embeddings(self, texts: List[str], batch_size: int = 20) -> List[List[float]]:
