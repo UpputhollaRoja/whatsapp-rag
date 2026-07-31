@@ -111,14 +111,19 @@ class ChatHandler:
                     await self._handle_whatsapp_document(user_phone, media_url, filename, mimetype)
                     continue
 
-                # Get actual text content
+                # Get actual text content with defensive dict check
+                ext_text_msg = message_content.get("extendedTextMessage") or {}
+                if not isinstance(ext_text_msg, dict):
+                    ext_text_msg = {}
+
                 user_message = (
                     msg.get("messageBody")
                     or message_content.get("conversation")
-                    or message_content.get("extendedTextMessage", {}).get("text")
+                    or ext_text_msg.get("text")
                     or msg.get("text")
                     or msg.get("body")
                 )
+
 
                 if not user_message:
                     continue
@@ -217,7 +222,6 @@ class ChatHandler:
 
     def _needs_escalation(self, answer: str) -> bool:
         escalation_phrases = [
-            # English phrases
             "do not have that information",
             "don't have that information",
             "cannot answer that",
@@ -225,16 +229,15 @@ class ChatHandler:
             "no information in my knowledge base",
             "not available in the documents",
             "contact staff",
-
-            # Telugu phrases
             "సమాచారం లేదు",
             "సంప్రదించండి",
             "లభ్యం కాలేదు",
             "వివరాలు లేవు",
-            "సమాచారం అందుబాటులో లేదు"
+            "సమాచారం అందుబాటులో లేదు",
         ]
         answer_lower = answer.lower()
-        return any(phrase in answer_lower or phrase in answer for phrase in escalation_phrases)
+        return any(phrase.lower() in answer_lower for phrase in escalation_phrases)
+
 
     def _flag_escalation(self, phone: str, message: str):
         try:

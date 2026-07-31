@@ -102,31 +102,33 @@ async def upload_document(file: UploadFile = File(...)):
     filename = file.filename or "uploaded_document"
     lower_filename = filename.lower()
     
-    # Allowed document extensions
-    allowed_extensions = (".pdf", ".txt", ".csv", ".md", ".doc", ".docx", ".json")
+    allowed_extensions = (".pdf", ".txt")
     disallowed_extensions = (".exe", ".dll", ".bin", ".sh", ".bat", ".cmd", ".msi", ".dmg")
     
     if any(lower_filename.endswith(ext) for ext in disallowed_extensions):
         raise HTTPException(status_code=400, detail="Unsupported file type. Executables and binary files are not allowed.")
 
+    content_type = file.content_type or ""  # avoid AttributeError when header is missing
     allowed = (
-        file.content_type.startswith("text/")
-        or file.content_type in ["application/pdf", "application/json", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
+        content_type in ["application/pdf", "text/plain"]
         or any(lower_filename.endswith(ext) for ext in allowed_extensions)
     )
     if not allowed:
-        raise HTTPException(status_code=400, detail="Unsupported file type. Please upload a PDF, TXT, CSV, MD, or DOCX document.")
+        raise HTTPException(status_code=400, detail="Unsupported file type. Please upload a PDF or TXT document.")
 
-
-    
     doc_id = str(uuid.uuid4())
-    content = await file.read()
+
+    # Memory-safe chunked streaming upload size check
+    content_chunks = bytearray()
+    while chunk := await file.read(1024 * 1024):
+        content_chunks.extend(chunk)
+        if len(content_chunks) > MAX_FILE_SIZE_BYTES:
+            raise HTTPException(status_code=413, detail="File too large. Maximum allowed size is 2 GB.")
+    content = bytes(content_chunks)
 
     if len(content) == 0:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
-    if len(content) > MAX_FILE_SIZE_BYTES:
-        raise HTTPException(status_code=413, detail="File too large. Maximum allowed size is 2 GB.")
 
 
     try:
