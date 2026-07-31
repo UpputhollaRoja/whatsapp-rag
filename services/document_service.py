@@ -56,7 +56,9 @@ class DocumentService:
             doc = fitz.open(stream=file_content, filetype="pdf")
             for page in doc:
                 page_text = page.get_text("text")
+                # pyrefly: ignore [missing-attribute]
                 if page_text and page_text.strip():
+                    # pyrefly: ignore [unsupported-operation]
                     text += page_text + "\n"
         except Exception as e:
             fitz_error = e

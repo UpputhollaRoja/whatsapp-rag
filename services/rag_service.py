@@ -85,8 +85,9 @@ class RAGService:
             if response and response.data:
                 # Reversing to chronological order
                 for row in reversed(response.data):
-                    # pyrefly: ignore [unsupported-operation]
+                    # pyrefly: ignore [bad-index, unsupported-operation]
                     role = "user" if row["sender"] == "user" else "assistant"
+                    # pyrefly: ignore [bad-index, unsupported-operation]
                     history.append({"role": role, "content": row["message"]})
                 
             return history
@@ -122,6 +123,7 @@ class RAGService:
             messages.extend(history)
             messages.append({"role": "user", "content": query})
 
+            # pyrefly: ignore [no-matching-overload]
             response = self.openai_client.chat.completions.create(
                 model=settings.nvidia_model,
                 messages=messages,
