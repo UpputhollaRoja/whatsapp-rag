@@ -228,6 +228,7 @@ def list_documents():
         except Exception as err:
             logger.warning(f"Could not order documents by uploaded_at: {err}. Falling back to simple select.")
             response = supabase.table("documents").select("*").execute()
+        # pyrefly: ignore [bad-argument-type]
         return DocumentListResponse(status="success", documents=response.data or [])
     except Exception as e:
         logger.error(f"Error listing documents: {e}")
