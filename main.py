@@ -73,7 +73,7 @@ def verify_webhook_secret(
     if expected_secret:
         auth_secret = authorization.replace("Bearer ", "").strip() if authorization else None
         provided_secret = x_webhook_signature or x_webhook_secret or x_wasender_secret or auth_secret or secret or token
-        if provided_secret and not hmac.compare_digest(provided_secret, expected_secret):
+        if not provided_secret or not hmac.compare_digest(provided_secret, expected_secret):
             raise HTTPException(status_code=401, detail="Unauthorized webhook request: Invalid signature or secret.")
 
 @app.get("/")
