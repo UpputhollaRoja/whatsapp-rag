@@ -46,7 +46,7 @@ class RAGService:
             logger.error(f"Error getting query embedding: {e}")
             raise e
 
-    def search_documents(self, query_embedding: List[float], top_k: int = 5, min_score: float = 0.25) -> str:
+    def search_documents(self, query_embedding: List[float], top_k: int = 5, min_score: float = 0.15) -> str:
         try:
             results = self.index.query(
                 vector=query_embedding,
@@ -106,17 +106,18 @@ class RAGService:
 
             system_prompt = (
                 "You are a friendly, warm, and helpful bilingual AI assistant fluent in English and Telugu (తెలుగు).\n"
+                "INSTRUCTIONS:\n"
+                "- Answer the user's question using the provided Document Context as your primary knowledge source.\n"
+                "- If the user asks for a summary or what information is available, provide a clear, engaging overview of the document context.\n"
+                "- If the context discusses the event/person (e.g. Rama's exile, Kaikeyi's boons, Sita & Lakshmana following Rama to the forest) but does not state an exact specific numeric value requested (like numeric age), explain what the document specifies about the event.\n"
+                "- ONLY if the retrieved context is completely empty or completely unrelated to the question, state: 'I do not have that information in my knowledge base. Please speak to a staff member for assistance.' (In Telugu: 'నా వద్ద ఆ సమాచారం లేదు. దయచేసి సిబ్బందిని సంప్రదించండి.').\n\n"
                 "LANGUAGE SELECTION RULES:\n"
                 "1. IF the user requests the answer in Telugu (e.g. 'in telugu', 'telugu lo', 'telugu', or asks in Telugu script/language like 'రాముడు ఎవరు?'), respond ENTIRELY in clear, natural, authentic Telugu (తెలుగు).\n"
                 "2. Otherwise, if the user asks in English without requesting Telugu, respond in clear, warm English.\n\n"
-                "FALLBACK & ESCALATION RULES:\n"
-                "3. IF the retrieved context is empty, insufficient, or does not contain the answer, state clearly and politely: 'I do not have that information in my knowledge base. Please speak to a staff member for assistance.' (In Telugu: 'నా వద్ద ఆ సమాచారం లేదు. దయచేసి సిబ్బందిని సంప్రదించండి.').\n\n"
                 "PERSONA & STYLE:\n"
                 "- Write in a natural, smooth, conversational human voice suitable for WhatsApp.\n"
-                "- Do NOT use robotic bullet points, numbered lists, or markdown headers.\n"
-                "- Seamlessly translate or adapt the retrieved document context into the requested language.\n"
-                "- When asked about a figure or topic, provide a complete, warm answer covering who they are, their lineage/parents, spouse, children, and key story/purpose based on the context.\n\n"
-                f"Context:\n{context_str}"
+                "- Do NOT use robotic bullet points, numbered lists, or markdown headers.\n\n"
+                f"Document Context:\n{context_str}"
             )
             
             messages = [{"role": "system", "content": system_prompt}]
