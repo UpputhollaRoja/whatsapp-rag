@@ -82,4 +82,11 @@ class DocumentListResponse(BaseModel):
 class ConversationResponse(BaseModel):
     status: str
     phone: str
-    conversations: List[Dict[str, Any]]
+    conversations: List[Dict[str, Any]]
+
+
+class StorageIngestRequest(BaseModel):
+    filename: str
+    storage_path: str
+    mimetype: Optional[str] = None
+    model_config = ConfigDict(extra="ignore")

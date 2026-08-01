@@ -133,43 +133,91 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     async function handleFileUpload(file) {
-        const MAX_VERCEL_SIZE = 4.5 * 1024 * 1024; // 4.5 MB Vercel Serverless Function payload limit
-        if (file.size > MAX_VERCEL_SIZE) {
+        const MAX_TOTAL_SIZE = 50 * 1024 * 1024; // 50 MB overall system limit
+        const DIRECT_UPLOAD_LIMIT = 4.5 * 1024 * 1024; // 4.5 MB Vercel Serverless Function proxy limit
+
+        if (file.size > MAX_TOTAL_SIZE) {
             const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-            showToast(`Upload rejected: '${file.name}' is ${sizeMB} MB. Maximum allowed file size on Vercel is 4.5 MB.`, true);
+            showToast(`Upload rejected: '${file.name}' is ${sizeMB} MB. Maximum allowed file size is 50 MB.`, true);
             return;
         }
-
-        const formData = new FormData();
-        formData.append('file', file);
 
         showToast(`Uploading ${file.name}...`);
 
         try {
-            const res = await fetch('/api/documents/upload', {
+            // For files under 4.5 MB, attempt direct API upload first
+            if (file.size <= DIRECT_UPLOAD_LIMIT) {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const res = await fetch('/api/documents/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    showToast(`Success: ${data.message}`);
+                    loadDocuments();
+                    return;
+                } else if (res.status !== 413) {
+                    const contentType = res.headers.get('content-type') || '';
+                    const data = contentType.includes('application/json') ? await res.json() : { detail: await res.text() };
+                    showToast(`Error: ${data.detail || 'Upload failed'}`, true);
+                    return;
+                }
+            }
+
+            // For files > 4.5 MB or on 413 response, bypass Vercel serverless proxy via direct Supabase Storage upload
+            showToast(`Uploading ${file.name} (${(file.size / (1024 * 1024)).toFixed(1)} MB) via cloud storage...`);
+            
+            const credsRes = await fetch('/api/storage/credentials');
+            if (!credsRes.ok) {
+                throw new Error('Failed to retrieve cloud storage credentials');
+            }
+            const creds = await credsRes.json();
+
+            const sanitizedName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const storagePath = `upload_${Date.now()}_${sanitizedName}`;
+
+            const storageUrl = `${creds.url.replace(/\/$/, '')}/storage/v1/object/documents/${storagePath}`;
+            
+            const storageUploadRes = await fetch(storageUrl, {
                 method: 'POST',
-                body: formData
+                headers: {
+                    'Authorization': `Bearer ${creds.key}`,
+                    'apikey': creds.key,
+                    'x-upsert': 'true',
+                    'Content-Type': file.type || 'application/octet-stream'
+                },
+                body: file
             });
 
-            let data = {};
-            const contentType = res.headers.get('content-type') || '';
-            if (contentType.includes('application/json')) {
-                data = await res.json();
-            } else {
-                const text = await res.text();
-                data = {
-                    detail: res.status === 413
-                        ? 'File size exceeds server upload limit of 4.5 MB (413 Request Entity Too Large).'
-                        : (text || `Server error (${res.status})`)
-                };
+            if (!storageUploadRes.ok) {
+                const errText = await storageUploadRes.text();
+                throw new Error(`Cloud storage upload failed: ${errText || storageUploadRes.statusText}`);
             }
 
-            if (res.ok) {
-                showToast(`Success: ${data.message}`);
+            // Trigger FastAPI ingestion from Supabase Storage
+            showToast(`Extracting text and generating embeddings for ${file.name}...`);
+            const ingestRes = await fetch('/api/documents/ingest-from-storage', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    filename: file.name,
+                    storage_path: storagePath,
+                    mimetype: file.type
+                })
+            });
+
+            const ingestData = await ingestRes.json();
+            if (ingestRes.ok) {
+                showToast(`Success: ${ingestData.message}`);
                 loadDocuments();
             } else {
-                showToast(`Error: ${data.detail || 'Upload failed'}`, true);
+                showToast(`Error: ${ingestData.detail || 'Ingestion failed'}`, true);
             }
+
         } catch (e) {
             showToast(`Upload failed: ${e.message}`, true);
         }

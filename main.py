@@ -16,7 +16,8 @@ from config import settings, clean_phone_number
 from models import (
     DocumentUploadResponse,
     DocumentListResponse,
-    ConversationResponse
+    ConversationResponse,
+    StorageIngestRequest
 )
 from services.chat_handler import chat_handler
 from services.document_service import document_service
@@ -84,6 +85,13 @@ def read_root():
     if os.path.exists(index_file):
         return FileResponse(index_file)
     return {"message": "WhatsApp RAG Chatbot API is running"}
+
+@app.get("/api/storage/credentials")
+def get_storage_credentials():
+    return {
+        "url": settings.supabase_url,
+        "key": settings.supabase_key
+    }
 
 
 @app.get("/webhook")
@@ -240,6 +248,57 @@ async def upload_document(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail=str(ve))
     except Exception as e:
         logger.error(f"Error uploading document {filename}: {e}", exc_info=True)
+        try:
+            supabase.table("documents").update({"status": "failed"}).eq("id", doc_id).execute()
+        except Exception:
+            pass
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/documents/ingest-from-storage", response_model=DocumentUploadResponse, dependencies=[Depends(verify_internal_api_key)])
+async def ingest_from_storage(payload: StorageIngestRequest):
+    filename = payload.filename
+    storage_path = payload.storage_path
+    doc_id = str(uuid.uuid4())
+
+    try:
+        # Download document bytes directly from Supabase Storage bucket
+        content = await asyncio.to_thread(supabase.storage.from_("documents").download, storage_path)
+
+        supabase.table("documents").insert({
+            "id": doc_id,
+            "filename": filename,
+            "status": "processing"
+        }).execute()
+
+        mimetype = payload.mimetype or ("text/plain" if filename.lower().endswith(".txt") else "application/pdf")
+        await asyncio.to_thread(
+            document_service.process_and_ingest_document,
+            doc_id,
+            filename,
+            content,
+            mimetype
+        )
+
+        # Cleanup temporary storage file from Supabase Storage
+        try:
+            await asyncio.to_thread(supabase.storage.from_("documents").remove, [storage_path])
+        except Exception as remove_err:
+            logger.warning(f"Failed to remove temp storage file {storage_path}: {remove_err}")
+
+        return DocumentUploadResponse(
+            status="success",
+            message=f"Document {filename} ingested successfully from storage.",
+            doc_id=doc_id
+        )
+    except ValueError as ve:
+        logger.warning(f"Validation error ingesting document {filename} from storage: {ve}")
+        try:
+            supabase.table("documents").update({"status": "failed"}).eq("id", doc_id).execute()
+        except Exception:
+            pass
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        logger.error(f"Error ingesting document {filename} from storage: {e}", exc_info=True)
         try:
             supabase.table("documents").update({"status": "failed"}).eq("id", doc_id).execute()
         except Exception:
