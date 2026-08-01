@@ -48,83 +48,78 @@ class DocumentService:
 
 
     def extract_text_from_pdf(self, file_content: bytes) -> str:
-        text = ""
+        text_pages = []
         fitz_error = None
-        
-        # Engine 1: PyMuPDF standard text
+
+        # Method A: PyMuPDF page-by-page multi-mode extraction
         try:
             doc = fitz.open(stream=file_content, filetype="pdf")
             for page in doc:
-                page_text = page.get_text("text")
-                # pyrefly: ignore [missing-attribute]
-                if page_text and page_text.strip():
-                    # pyrefly: ignore [unsupported-operation]
-                    text += page_text + "\n"
+                page_str = page.get_text("text") or ""
+                
+                # Fallback to block extraction if text was empty for page
+                if not page_str.strip():
+                    try:
+                        blocks = page.get_text("blocks")
+                        if blocks:
+                            page_str = "\n".join([b[4] for b in blocks if len(b) >= 5 and b[4] and b[4].strip()])
+                    except Exception:
+                        pass
+
+                # Fallback to word extraction if block text was empty for page
+                if not page_str.strip():
+                    try:
+                        words = page.get_text("words")
+                        if words:
+                            page_str = " ".join([w[4] for w in words if len(w) >= 5 and w[4] and w[4].strip()])
+                    except Exception:
+                        pass
+
+                if page_str and page_str.strip():
+                    text_pages.append(page_str.strip())
         except Exception as e:
             fitz_error = e
 
-        # Engine 2: PyMuPDF block text if standard text was empty
-        if not text.strip():
-            try:
-                doc = fitz.open(stream=file_content, filetype="pdf")
-                for page in doc:
-                    blocks = page.get_text("blocks")
-                    for b in blocks:
-                        if len(b) >= 5 and b[4] and b[4].strip():
-                            text += b[4] + "\n"
-            except Exception:
-                pass
-
-        # Engine 3: PyMuPDF words mode
-        if not text.strip():
-            try:
-                doc = fitz.open(stream=file_content, filetype="pdf")
-                for page in doc:
-                    words = page.get_text("words")
-                    if words:
-                        text += " ".join([w[4] for w in words if len(w) >= 5 and w[4]]) + "\n"
-            except Exception:
-                pass
-
-        # Engine 4: pypdf fallback
-        if not text.strip():
+        # Method B: pypdf page-by-page extraction fallback if PyMuPDF extracted no text
+        if not text_pages:
             try:
                 reader = PdfReader(BytesIO(file_content))
                 for page in reader.pages:
                     extracted = page.extract_text()
                     if extracted and extracted.strip():
-                        text += extracted + "\n"
+                        text_pages.append(extracted.strip())
             except Exception as e:
                 if fitz_error is not None:
                     raise ValueError(f"Failed to extract text from PDF: {str(e)}")
 
-        # Engine 5: RapidOCR Fallback for Scanned / Image-Only PDFs
-        if not text.strip():
+        # Method C: RapidOCR Fallback for Scanned / Image-Only PDFs (up to 20 pages)
+        if not text_pages:
             try:
                 from rapidocr_onnxruntime import RapidOCR
                 ocr = RapidOCR()
                 doc = fitz.open(stream=file_content, filetype="pdf")
-                ocr_lines = []
-                for page in doc:
+                max_ocr_pages = min(len(doc), 20)
+                for i in range(max_ocr_pages):
+                    page = doc[i]
                     pix = page.get_pixmap(dpi=150)
                     img_bytes = pix.tobytes("png")
                     result, _ = ocr(img_bytes)
                     if result:
                         page_ocr_text = " ".join([item[1] for item in result if len(item) >= 2 and item[1]])
                         if page_ocr_text.strip():
-                            ocr_lines.append(page_ocr_text)
-                if ocr_lines:
-                    text = "\n\n".join(ocr_lines)
+                            text_pages.append(page_ocr_text.strip())
             except Exception as ocr_err:
                 logger.warning(f"OCR extraction failed for scanned PDF: {ocr_err}")
 
-        if fitz_error is not None and not text.strip():
+        full_text = "\n\n".join(text_pages).strip()
+
+        if fitz_error is not None and not full_text:
             raise ValueError(f"Failed to extract text from PDF: {str(fitz_error)}")
 
-        if not text.strip():
-            raise ValueError("Unable to extract text from PDF (empty or unreadable scan).")
+        if not full_text:
+            raise ValueError("Unable to extract text from PDF (file may be unreadable, corrupted, or password protected).")
 
-        return text
+        return full_text
 
 
 
