@@ -49,81 +49,79 @@ class DocumentService:
 
 
     def extract_text_from_pdf(self, file_content: bytes) -> str:
-        text_pages = []
+        text = ""
         fitz_error = None
-
-        # Method A: PyMuPDF page-by-page multi-mode extraction
+        
+        # Engine 1: PyMuPDF standard text
         try:
             doc = fitz.open(stream=file_content, filetype="pdf")
             for page in doc:
-                page_str = page.get_text("text") or ""
-                
-                # Fallback to block extraction if text was empty for page
-                if not page_str.strip():
-                    try:
-                        blocks = page.get_text("blocks")
-                        if blocks:
-                            page_str = "\n".join([b[4] for b in blocks if len(b) >= 5 and b[4] and b[4].strip()])
-                    except Exception:
-                        pass
-
-                # Fallback to word extraction if block text was empty for page
-                if not page_str.strip():
-                    try:
-                        words = page.get_text("words")
-                        if words:
-                            page_str = " ".join([w[4] for w in words if len(w) >= 5 and w[4] and w[4].strip()])
-                    except Exception:
-                        pass
-
-                if page_str and page_str.strip():
-                    text_pages.append(page_str.strip())
+                page_text = page.get_text("text")
+                # pyrefly: ignore [missing-attribute]
+                if page_text and page_text.strip():
+                    # pyrefly: ignore [unsupported-operation]
+                    text += page_text + "\n"
         except Exception as e:
             fitz_error = e
 
-        # Method B: pypdf page-by-page extraction fallback if PyMuPDF extracted no text
-        if not text_pages:
+        # Engine 2: PyMuPDF block text if standard text was empty
+        if not text.strip():
+            try:
+                doc = fitz.open(stream=file_content, filetype="pdf")
+                for page in doc:
+                    blocks = page.get_text("blocks")
+                    for b in blocks:
+                        if len(b) >= 5 and b[4] and b[4].strip():
+                            text += b[4] + "\n"
+            except Exception:
+                pass
+
+        # Engine 3: pypdf fallback
+        if not text.strip():
             try:
                 reader = PdfReader(BytesIO(file_content))
                 for page in reader.pages:
                     extracted = page.extract_text()
                     if extracted and extracted.strip():
-                        text_pages.append(extracted.strip())
+                        text += extracted + "\n"
             except Exception as e:
                 if fitz_error is not None:
                     raise ValueError(f"Failed to extract text from PDF: {str(e)}")
 
-        # Method C: OCR.space Cloud API Fallback for Scanned / Image-Only PDFs
-        if not text_pages:
+        # Engine 4: OCR fallback via OCR.space API
+        if not text.strip():
             try:
-                if settings.ocr_space_api_key:
-                    logger.info("Triggering OCR.space Cloud API fallback for scanned PDF...")
-                    res = httpx.post(
-                        "https://api.ocr.space/parse/image",
-                        headers={"apikey": settings.ocr_space_api_key},
-                        files={"file": ("document.pdf", file_content, "application/pdf")},
-                        data={"isCreateSearchablePdf": False},
-                        timeout=30.0
-                    )
-                    if res.status_code == 200:
-                        data = res.json()
-                        parsed_results = data.get("ParsedResults", [])
-                        for r in parsed_results:
-                            p_text = r.get("ParsedText", "").strip()
-                            if p_text:
-                                text_pages.append(p_text)
-            except Exception as ocr_err:
-                logger.warning(f"OCR.space API extraction failed: {ocr_err}")
+                import requests
+                ocr_response = requests.post(
+                    "https://api.ocr.space/parse/image",
+                    data={
+                        "apikey": settings.ocr_space_api_key,
+                        "language": "eng",
+                        "isOverlayRequired": False,
+                        "filetype": "PDF",
+                        "OCREngine": 2,
+                    },
+                    files={"file": ("document.pdf", file_content, "application/pdf")},
+                    timeout=60,
+                )
+                result = ocr_response.json()
+                if result.get("IsErroredOnProcessing"):
+                    logger.warning(f"OCR.space error: {result.get('ErrorMessage')}")
+                else:
+                    for parsed_page in result.get("ParsedResults", []):
+                        page_text = parsed_page.get("ParsedText", "")
+                        if page_text and page_text.strip():
+                            text += page_text + "\n"
+            except Exception as e:
+                logger.warning(f"OCR fallback failed: {e}")
 
-        full_text = "\n\n".join(text_pages).strip()
-
-        if fitz_error is not None and not full_text:
+        if fitz_error is not None and not text.strip():
             raise ValueError(f"Failed to extract text from PDF: {str(fitz_error)}")
 
-        if not full_text:
-            raise ValueError("Unable to extract text from PDF (file may be unreadable, corrupted, or password protected).")
+        if not text.strip():
+            raise ValueError("Unable to extract readable text from this PDF, including OCR.")
 
-        return full_text
+        return text
 
 
 
