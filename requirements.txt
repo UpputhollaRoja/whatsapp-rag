@@ -12,6 +12,7 @@ PyMuPDF
 python-multipart
 httpx
 rapidocr-onnxruntime
+opencv-python-headless
 pytest
 
 

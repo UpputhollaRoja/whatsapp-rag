@@ -75,7 +75,18 @@ class DocumentService:
             except Exception:
                 pass
 
-        # Engine 3: pypdf fallback
+        # Engine 3: PyMuPDF words mode
+        if not text.strip():
+            try:
+                doc = fitz.open(stream=file_content, filetype="pdf")
+                for page in doc:
+                    words = page.get_text("words")
+                    if words:
+                        text += " ".join([w[4] for w in words if len(w) >= 5 and w[4]]) + "\n"
+            except Exception:
+                pass
+
+        # Engine 4: pypdf fallback
         if not text.strip():
             try:
                 reader = PdfReader(BytesIO(file_content))
@@ -87,7 +98,7 @@ class DocumentService:
                 if fitz_error is not None:
                     raise ValueError(f"Failed to extract text from PDF: {str(e)}")
 
-        # Engine 4: RapidOCR Fallback for Scanned / Image-Only PDFs
+        # Engine 5: RapidOCR Fallback for Scanned / Image-Only PDFs
         if not text.strip():
             try:
                 from rapidocr_onnxruntime import RapidOCR
