@@ -92,25 +92,6 @@ class DocumentService:
                 if fitz_error is not None:
                     raise ValueError(f"Failed to extract text from PDF: {str(e)}")
 
-        # Method C: RapidOCR Fallback for Scanned / Image-Only PDFs (up to 20 pages)
-        if not text_pages:
-            try:
-                from rapidocr_onnxruntime import RapidOCR
-                ocr = RapidOCR()
-                doc = fitz.open(stream=file_content, filetype="pdf")
-                max_ocr_pages = min(len(doc), 20)
-                for i in range(max_ocr_pages):
-                    page = doc[i]
-                    pix = page.get_pixmap(dpi=150)
-                    img_bytes = pix.tobytes("png")
-                    result, _ = ocr(img_bytes)
-                    if result:
-                        page_ocr_text = " ".join([item[1] for item in result if len(item) >= 2 and item[1]])
-                        if page_ocr_text.strip():
-                            text_pages.append(page_ocr_text.strip())
-            except Exception as ocr_err:
-                logger.warning(f"OCR extraction failed for scanned PDF: {ocr_err}")
-
         full_text = "\n\n".join(text_pages).strip()
 
         if fitz_error is not None and not full_text:
