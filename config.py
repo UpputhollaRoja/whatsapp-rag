@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     wasender_api_url: str = "https://www.wasenderapi.com/api/send-message"
     wasender_webhook_secret: str = ""
 
+    ocr_space_api_key: str = "K87843905188957"
+
     # Security & Server Settings
     internal_api_key: Optional[str] = None
     allowed_origins: str = "*"

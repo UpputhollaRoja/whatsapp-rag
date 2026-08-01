@@ -3,6 +3,7 @@ import re
 import logging
 from io import BytesIO
 from typing import List
+import httpx
 from pypdf import PdfReader
 import fitz
 
@@ -91,6 +92,28 @@ class DocumentService:
             except Exception as e:
                 if fitz_error is not None:
                     raise ValueError(f"Failed to extract text from PDF: {str(e)}")
+
+        # Method C: OCR.space Cloud API Fallback for Scanned / Image-Only PDFs
+        if not text_pages:
+            try:
+                if settings.ocr_space_api_key:
+                    logger.info("Triggering OCR.space Cloud API fallback for scanned PDF...")
+                    res = httpx.post(
+                        "https://api.ocr.space/parse/image",
+                        headers={"apikey": settings.ocr_space_api_key},
+                        files={"file": ("document.pdf", file_content, "application/pdf")},
+                        data={"isCreateSearchablePdf": False},
+                        timeout=30.0
+                    )
+                    if res.status_code == 200:
+                        data = res.json()
+                        parsed_results = data.get("ParsedResults", [])
+                        for r in parsed_results:
+                            p_text = r.get("ParsedText", "").strip()
+                            if p_text:
+                                text_pages.append(p_text)
+            except Exception as ocr_err:
+                logger.warning(f"OCR.space API extraction failed: {ocr_err}")
 
         full_text = "\n\n".join(text_pages).strip()
 
