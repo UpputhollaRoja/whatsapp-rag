@@ -39,7 +39,7 @@ class RAGService:
         try:
             response = self.openai_client.embeddings.create(
                 input=query,
-                model="nvidia/nv-embed-v1"
+                model=settings.nvidia_embed_model
             )
             return response.data[0].embedding
         except Exception as e:

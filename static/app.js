@@ -133,6 +133,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     async function handleFileUpload(file) {
+        const MAX_VERCEL_SIZE = 4.5 * 1024 * 1024; // 4.5 MB Vercel Serverless Function payload limit
+        if (file.size > MAX_VERCEL_SIZE) {
+            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+            showToast(`Upload rejected: '${file.name}' is ${sizeMB} MB. Maximum allowed file size on Vercel is 4.5 MB.`, true);
+            return;
+        }
+
         const formData = new FormData();
         formData.append('file', file);
 
@@ -143,7 +150,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 method: 'POST',
                 body: formData
             });
-            const data = await res.json();
+
+            let data = {};
+            const contentType = res.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+                data = await res.json();
+            } else {
+                const text = await res.text();
+                data = {
+                    detail: res.status === 413
+                        ? 'File size exceeds server upload limit of 4.5 MB (413 Request Entity Too Large).'
+                        : (text || `Server error (${res.status})`)
+                };
+            }
+
             if (res.ok) {
                 showToast(`Success: ${data.message}`);
                 loadDocuments();

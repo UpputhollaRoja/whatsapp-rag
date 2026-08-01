@@ -2,21 +2,22 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
 class Settings(BaseSettings):
-    # Required secrets with no fallback defaults to ensure fast failure if .env is missing key variables
-    nvidia_api_key: str
+    # Secrets with fallback defaults to prevent server startup crash (500) if environment variables are not set on deployment platforms
+    nvidia_api_key: str = ""
     nvidia_base_url: str = "https://integrate.api.nvidia.com/v1"
     nvidia_model: str = "nvidia/nemotron-3-ultra-550b-a55b"
+    nvidia_embed_model: str = "nvidia/nv-embed-v1"
 
-    pinecone_api_key: str
+    pinecone_api_key: str = ""
     pinecone_environment: str = "us-east-1"
     pinecone_index_name: str = "whatsapp-rag-index"
 
-    supabase_url: str
-    supabase_key: str
+    supabase_url: str = ""
+    supabase_key: str = ""
 
-    wasender_token: str
+    wasender_token: str = ""
     wasender_api_url: str = "https://www.wasenderapi.com/api/send-message"
-    wasender_webhook_secret: str
+    wasender_webhook_secret: str = ""
 
     # Security & Server Settings
     internal_api_key: Optional[str] = None

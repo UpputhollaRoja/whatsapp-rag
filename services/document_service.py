@@ -103,7 +103,7 @@ class DocumentService:
             batch = texts[i:i + batch_size]
             response = self.openai_client.embeddings.create(
                 input=batch,
-                model="nvidia/nv-embed-v1"
+                model=settings.nvidia_embed_model
             )
             all_embeddings.extend([data.embedding for data in response.data])
         return all_embeddings
@@ -174,6 +174,30 @@ class DocumentService:
                 supabase.table("documents").update({"status": "failed"}).eq("id", doc_id).execute()
             except Exception as db_err:
                 logger.error(f"Failed to update document status to failed in Supabase: {db_err}")
+            raise e
+
+    def delete_all_documents(self):
+        try:
+            supabase.table("documents").delete().neq("id", "00000000-0000-0000-0000-000000000000").execute()
+            try:
+                self.index.delete(delete_all=True)
+            except Exception as pc_err:
+                logger.warning(f"Pinecone delete_all error: {pc_err}")
+            logger.info("All documents and vectors deleted successfully.")
+        except Exception as e:
+            logger.error(f"Error deleting all documents: {e}")
+            raise e
+
+    def delete_document(self, doc_id: str):
+        try:
+            supabase.table("documents").delete().eq("id", doc_id).execute()
+            try:
+                self.index.delete(filter={"doc_id": {"$eq": doc_id}})
+            except Exception as pc_err:
+                logger.warning(f"Pinecone filter delete error for {doc_id}: {pc_err}")
+            logger.info(f"Document {doc_id} deleted successfully.")
+        except Exception as e:
+            logger.error(f"Error deleting document {doc_id}: {e}")
             raise e
 
 document_service = DocumentService()

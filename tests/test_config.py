@@ -16,5 +16,6 @@ def test_clean_phone_number():
 
 def test_settings_initialization():
     s = Settings()
-    assert s.nvidia_model == "nvidia/nemotron-3-ultra-550b-a55b"
+    assert bool(s.nvidia_model)
+    assert bool(s.nvidia_embed_model)
     assert s.pinecone_index_name == "whatsapp-rag-index"

@@ -256,6 +256,24 @@ def list_documents():
         logger.error(f"Error listing documents: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.delete("/api/documents", dependencies=[Depends(verify_internal_api_key)])
+async def delete_all_documents():
+    try:
+        await asyncio.to_thread(document_service.delete_all_documents)
+        return {"status": "success", "message": "All documents and vector embeddings deleted successfully."}
+    except Exception as e:
+        logger.error(f"Error deleting all documents: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/documents/{doc_id}", dependencies=[Depends(verify_internal_api_key)])
+async def delete_document(doc_id: str):
+    try:
+        await asyncio.to_thread(document_service.delete_document, doc_id)
+        return {"status": "success", "message": f"Document {doc_id} deleted successfully."}
+    except Exception as e:
+        logger.error(f"Error deleting document {doc_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @app.get("/api/conversations/{phone}", response_model=ConversationResponse, dependencies=[Depends(verify_internal_api_key)])
 def get_user_conversations(
