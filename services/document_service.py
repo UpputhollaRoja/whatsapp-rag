@@ -87,11 +87,31 @@ class DocumentService:
                 if fitz_error is not None:
                     raise ValueError(f"Failed to extract text from PDF: {str(e)}")
 
+        # Engine 4: RapidOCR Fallback for Scanned / Image-Only PDFs
+        if not text.strip():
+            try:
+                from rapidocr_onnxruntime import RapidOCR
+                ocr = RapidOCR()
+                doc = fitz.open(stream=file_content, filetype="pdf")
+                ocr_lines = []
+                for page in doc:
+                    pix = page.get_pixmap(dpi=150)
+                    img_bytes = pix.tobytes("png")
+                    result, _ = ocr(img_bytes)
+                    if result:
+                        page_ocr_text = " ".join([item[1] for item in result if len(item) >= 2 and item[1]])
+                        if page_ocr_text.strip():
+                            ocr_lines.append(page_ocr_text)
+                if ocr_lines:
+                    text = "\n\n".join(ocr_lines)
+            except Exception as ocr_err:
+                logger.warning(f"OCR extraction failed for scanned PDF: {ocr_err}")
+
         if fitz_error is not None and not text.strip():
             raise ValueError(f"Failed to extract text from PDF: {str(fitz_error)}")
 
         if not text.strip():
-            raise ValueError("This appears to be a scanned/image-only PDF. OCR is not currently supported.")
+            raise ValueError("Unable to extract text from PDF (empty or unreadable scan).")
 
         return text
 
