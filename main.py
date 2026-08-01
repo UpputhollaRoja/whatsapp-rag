@@ -170,7 +170,7 @@ async def web_chat(payload: Dict[str, Any]):
     return {"status": "success", "phone": clean_phone, "query": query, "response": bot_answer}
 
 
-MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB limit
+MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024 * 1024  # 2 GB limit
 
 @app.post("/api/documents/upload", response_model=DocumentUploadResponse, dependencies=[Depends(verify_internal_api_key)])
 async def upload_document(file: UploadFile = File(...)):

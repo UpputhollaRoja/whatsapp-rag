@@ -133,12 +133,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     async function handleFileUpload(file) {
-        const MAX_TOTAL_SIZE = 50 * 1024 * 1024; // 50 MB overall system limit
+        const MAX_TOTAL_SIZE = 2 * 1024 * 1024 * 1024; // 2 GB overall system limit
         const DIRECT_UPLOAD_LIMIT = 4.5 * 1024 * 1024; // 4.5 MB Vercel Serverless Function proxy limit
 
         if (file.size > MAX_TOTAL_SIZE) {
-            const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-            showToast(`Upload rejected: '${file.name}' is ${sizeMB} MB. Maximum allowed file size is 50 MB.`, true);
+            const sizeGB = (file.size / (1024 * 1024 * 1024)).toFixed(2);
+            showToast(`Upload rejected: '${file.name}' is ${sizeGB} GB. Maximum allowed file size is 2 GB.`, true);
             return;
         }
 
