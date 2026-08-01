@@ -226,14 +226,14 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load Documents List
     async function loadDocuments() {
         const tbody = document.getElementById('documents-tbody');
-        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">Loading documents...</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">Loading documents...</td></tr>';
 
         try {
             const res = await fetch('/api/documents');
             const data = await res.json();
             if (res.ok && data.documents) {
                 if (data.documents.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; color: #94a3b8;">No documents ingested yet. Upload a PDF or TXT file above.</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: #94a3b8;">No documents ingested yet. Upload a PDF or TXT file above.</td></tr>';
                     return;
                 }
                 tbody.innerHTML = '';
@@ -247,13 +247,69 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td><span class="tag-badge ${statusClass}">${doc.status}</span></td>
                         <td style="font-family: var(--font-mono); font-size: 0.8rem;">${doc.id}</td>
                         <td>${dateStr}</td>
+                        <td style="text-align: center;">
+                            <button class="btn-delete-single" data-id="${doc.id}" data-filename="${escapeHtml(doc.filename)}" title="Delete Document" style="background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); padding: 0.35rem 0.65rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem; font-weight: 500; transition: all 0.2s ease;">
+                                🗑️ Delete
+                            </button>
+                        </td>
                     `;
                     tbody.appendChild(tr);
                 });
+
+                // Attach click listeners to all single delete buttons
+                document.querySelectorAll('.btn-delete-single').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const target = e.currentTarget;
+                        const docId = target.getAttribute('data-id');
+                        const filename = target.getAttribute('data-filename');
+                        deleteSingleDocument(docId, filename);
+                    });
+                });
             }
         } catch (e) {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; color: #ef4444;">Error loading documents: ${e.message}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color: #ef4444;">Error loading documents: ${e.message}</td></tr>`;
         }
+    }
+
+    async function deleteSingleDocument(docId, filename) {
+        if (!confirm(`Are you sure you want to delete '${filename}'? This will remove the document record and all indexed vector embeddings from Pinecone.`)) {
+            return;
+        }
+        showToast(`Deleting document '${filename}'...`);
+        try {
+            const res = await fetch(`/api/documents/${docId}`, { method: 'DELETE' });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(`Deleted '${filename}' successfully.`);
+                loadDocuments();
+            } else {
+                showToast(`Error deleting document: ${data.detail || 'Delete failed'}`, true);
+            }
+        } catch (e) {
+            showToast(`Delete failed: ${e.message}`, true);
+        }
+    }
+
+    const btnDeleteAll = document.getElementById('btn-delete-all-docs');
+    if (btnDeleteAll) {
+        btnDeleteAll.addEventListener('click', async () => {
+            if (!confirm('Are you sure you want to delete ALL documents? This will permanently remove all documents from Supabase and clear the entire Pinecone vector index.')) {
+                return;
+            }
+            showToast('Deleting all documents and clearing vector database...');
+            try {
+                const res = await fetch('/api/documents', { method: 'DELETE' });
+                const data = await res.json();
+                if (res.ok) {
+                    showToast('All documents and vectors deleted successfully.');
+                    loadDocuments();
+                } else {
+                    showToast(`Error: ${data.detail || 'Clear all failed'}`, true);
+                }
+            } catch (e) {
+                showToast(`Delete all failed: ${e.message}`, true);
+            }
+        });
     }
 
     // Load Conversations
