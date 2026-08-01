@@ -154,8 +154,14 @@ class ChatHandler:
                     continue
 
                 raw_msg_str = str(user_message).strip()
-                # Strip leading @ symbol if present, otherwise process full message text
-                cleaned_query = raw_msg_str[1:].strip() if raw_msg_str.startswith("@") else raw_msg_str
+
+                # Only respond to messages that start with "@" — silently ignore all others
+                if not raw_msg_str.startswith("@"):
+                    logger.info(f"Ignoring message from '{user_phone}' (no @ prefix): '{raw_msg_str[:50]}'")
+                    continue
+
+                # Strip the leading "@" to get the actual query
+                cleaned_query = raw_msg_str[1:].strip()
 
                 if not cleaned_query:
                     continue
